@@ -46,26 +46,6 @@ where
     result.data().as_vector().unwrap().iter().map(map).collect() // unwrap: known query
 }
 
-pub async fn batteries(client: &Client) -> Result<Vec<(String, f64)>, Error> {
-    const QUERY: &str = r#"
-        node_power_supply_capacity
-    "#;
-    let result = instant_query(client, QUERY).await?;
-    let unknown = "unknown battery".to_string();
-    let mut batteries = vector_from_instant(result, |vector| {
-        (
-            vector
-                .metric()
-                .get("power_supply")
-                .unwrap_or(&unknown)
-                .to_string(),
-            vector.sample().value(),
-        )
-    });
-    batteries.sort_by(|(name1, _), (name2, _)| name1.cmp(name2));
-    Ok(batteries)
-}
-
 pub async fn cpu(client: &Client) -> Result<[Option<f64>; POINTS], Error> {
     const QUERY: &str = r#"
         avg (sum (rate(node_cpu_seconds_total{mode!="idle"}[1m])) without (mode)) without (cpu)

@@ -8,6 +8,7 @@ use zbus::{
     fdo::{ObjectManagerProxy, PropertiesProxy},
     Connection, Error, Result,
 };
+use zvariant::OwnedObjectPath;
 
 #[dbus_proxy(
     default_service = "org.bluez",
@@ -202,4 +203,133 @@ pub async fn bluetooth_toggle(device: Option<String>) -> Result<()> {
 
     // I guess we could power off the adapter when no devices are left?
     Ok(())
+}
+
+#[dbus_proxy(
+    default_service = "org.freedesktop.UPower",
+    default_path = "/org/freedesktop/UPower",
+    interface = "org.freedesktop.UPower"
+)]
+trait UPower {
+    fn enumerate_devices(&self) -> Result<Vec<OwnedObjectPath>>;
+
+    #[dbus_proxy(signal)]
+    fn device_added(&self) -> Result<()>;
+    #[dbus_proxy(signal)]
+    fn device_removed(&self) -> Result<()>;
+}
+
+#[dbus_proxy(
+    default_service = "org.freedesktop.UPower",
+    interface = "org.freedesktop.UPower.Device"
+)]
+trait Device {
+    #[dbus_proxy(property)]
+    fn is_present(&self) -> Result<bool>;
+    #[dbus_proxy(property)]
+    fn is_rechargeable(&self) -> Result<bool>;
+    #[dbus_proxy(property)]
+    fn model(&self) -> Result<String>;
+    #[dbus_proxy(property)]
+    fn percentage(&self) -> Result<f64>;
+}
+
+async fn power_status(devices: &HashMap<String, DeviceProxy<'_>>) -> Result<Vec<(String, f64)>> {
+    let mut batteries = Vec::new();
+    for (_, device) in devices {
+        let model = device.model().await?;
+        let percentage = device.percentage().await?;
+        batteries.push((model, percentage));
+    }
+    batteries.sort_by(|(name1, _), (name2, _)| name1.cmp(name2));
+    Ok(batteries)
+}
+
+pub async fn power() -> impl Stream<Item = Result<Vec<(String, f64)>>> {
+    try_stream! {
+        // I don't believe this nicely handles a disconnection (like a restart of UPower)...
+        let connection = Connection::system().await?;
+        let upower = UPowerProxy::new(&connection).await?;
+        // signal time=1664639124.613631 sender=:1.3 -> destination=(null destination) serial=759 path=/org/freedesktop/UPower; interface=org.freedesktop.UPower; member=DeviceAdded
+        //    object path "/org/freedesktop/UPower/devices/..."
+        let mut device_added = upower.receive_device_added().await?;
+        // signal time=1664648770.774883 sender=:1.3 -> destination=(null destination) serial=1718 path=/org/freedesktop/UPower; interface=org.freedesktop.UPower; member=DeviceRemoved
+        //    object path "/org/freedesktop/UPower/devices/..."
+        let mut device_removed = upower.receive_device_removed().await?;
+
+        let mut devices = HashMap::new();
+        let mut device_properties = StreamMap::new();
+
+        loop {
+            // Crawl all the devices.
+            // UPower makes it difficult for us for two reasons:
+            //  - devices are under /org/freedesktop/UPower/devices, which, apparently, requires a
+            //    dummy Proxy in zbus to handle,
+            //  - the tree is updated only after DeviceRemoved is sent so we can't trust Introspect
+            //    anyway.
+            // Fortunately, by using EnumerateDevices we can work around that and we don't have to
+            // ignore the fake DisplayDevice (https://upower.freedesktop.org/docs/UPower.html).
+            let paths: HashSet<String> = upower.enumerate_devices().await?.iter().map(|path| path.to_string()).collect();
+
+            let previous_paths: HashSet<String> = devices.keys().cloned().collect();
+            for path in previous_paths.difference(&paths) {
+                devices.remove(path);
+                device_properties.remove(path);
+            }
+            for path in paths.difference(&previous_paths) {
+                let device = DeviceProxy::builder(&connection)
+                    .path(path.to_string())?
+                    .build()
+                    .await?;
+                if !device.is_present().await? {
+                    eprintln!("skipping power device {}", device.path());
+                    continue;
+                }
+                // signal time=1664653462.331600 sender=:1.3 -> destination=(null destination) serial=2110 path=/org/freedesktop/UPower/devices/...; interface=org.freedesktop.DBus.Properties; member=PropertiesChanged
+                //    string "org.freedesktop.UPower.Device"
+                //    array [
+                //       dict entry(
+                //          string "TimeToEmpty"
+                //          variant             int64 28227
+                //       )
+                //       dict entry(
+                //          string "Percentage"
+                //          variant             double 98
+                //       )
+                //       ...
+                //    ]
+                //    array [
+                //    ]
+                let properties = PropertiesProxy::builder(&connection)
+                    .destination(device.destination().to_owned())?
+                    .path(device.path().to_owned())?
+                    .build()
+                    .await?;
+                devices.insert(path.to_string(), device);
+                device_properties.insert(
+                    path.to_string(),
+                    properties.receive_properties_changed().await?,
+                );
+            }
+
+            loop {
+                yield power_status(&devices).await?;
+
+                // A signal might fire multiple times in a row:
+                //  - more than one property can change,
+                //  - more entries can be added under a device.
+                let rebuild = tokio::select! {
+                    // Device change, rebuild the maps.
+                    Some(_) = device_added.next() => true,
+                    Some(_) = device_removed.next() => true,
+                    // Property change, continue polling.
+                    Some(_) = device_properties.next() => false,
+                };
+
+                if rebuild {
+                    break;
+                }
+            }
+        }
+    }
 }

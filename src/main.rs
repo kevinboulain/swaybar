@@ -197,7 +197,7 @@ async fn main() {
 
     let audio = fetch!(every_5s, process::audio(), forced);
     pin!(audio);
-    let batteries = fetch!(every_30s, prometheus::batteries(client));
+    let batteries = dbus::power().await;
     pin!(batteries);
     let bluetooth = dbus::bluetooth().await;
     pin!(bluetooth);
