@@ -1,13 +1,11 @@
 use crate::process;
 use async_stream::try_stream;
 use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
 use tokio_stream::Stream;
 use tokio_stream::{StreamExt, StreamMap};
 use zbus::{
     dbus_proxy,
     fdo::{ObjectManagerProxy, PropertiesProxy},
-    xml::Node,
     Connection, Error, Result,
 };
 
@@ -109,10 +107,12 @@ pub async fn bluetooth() -> impl Stream<Item = Result<(bool, Vec<(String, bool, 
 
             // Crawl all the devices under the adapter.
             // Trusted devices are always present.
-            let xml = adapter.introspect().await?;
-            for node in Node::from_str(&xml)?.nodes() {
-                if let Some(name) = node.name() {
-                    paths.insert(format!("{}/{}", adapter.path(), name));
+            // https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/test/list-devices
+            for (path, interface) in object_manager.get_managed_objects().await? {
+                for (interface, _) in interface {
+                    if interface == "org.bluez.Device1" {
+                        paths.insert(path.as_str().to_string());
+                    }
                 }
             }
 
