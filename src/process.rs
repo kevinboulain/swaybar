@@ -1,7 +1,6 @@
-use lazy_static;
+use lazy_static::lazy_static;
 use regex::bytes::Regex;
-use std::process::ExitStatus;
-use std::{io, str};
+use std::{io, process::ExitStatus, str};
 use tokio::process::Command;
 
 pub async fn audio() -> io::Result<f64> {

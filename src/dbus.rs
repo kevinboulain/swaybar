@@ -195,10 +195,9 @@ pub async fn bluetooth_toggle(device: Option<String>) -> Result<()> {
 
     // There is no method on the adapter to do that.
     if let Err(_) = process::bluetooth_toggle().await {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "",
-        )));
+        return Err(Error::InputOutput(
+            std::io::Error::new(std::io::ErrorKind::Other, "").into(),
+        ));
     }
 
     // I guess we could power off the adapter when no devices are left?

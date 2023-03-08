@@ -2,20 +2,21 @@
 name = "swaybar"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
-async-stream = "0.3.3"
-bytes = "1.2.1"
-chrono = "0.4.22"
-lazy_static = "1.4.0"
-libc = "0.2.133"
-prometheus-http-query = "0.6.2"
-regex = "1.6.0"
-serde = "1.0.145"
-serde_json = "1.0.85"
-tokio = { version = "1.21.1", default-features = false, features = ["macros", "process", "signal"] }
-tokio-fd = "0.3.0"
-tokio-stream = "0.1.10"
-tokio-util = "0.7.4"
-zbus = { version = "3.2.0", default-features = false, features = ["tokio", "xml"] }
-zvariant = "3.7.1"
+async-stream = "0.3.*"
+bytes = "1.4.*"
+chrono = "0.4.*"
+lazy_static = "1.4.*"
+libc = "0.2.*"
+prometheus-http-query = "0.6.*"
+regex = "1.7.*"
+serde = "1.0.*"
+serde_json = "1.0.*"
+tokio = { version = "1.26.0", default-features = false, features = ["macros", "process", "signal"] }
+tokio-fd = "0.3.*"
+tokio-stream = "0.1.*"
+tokio-util = "0.7.*"
+zbus = { version = "3.11.*", default-features = false, features = ["tokio", "xml"] }
+zvariant = "3.12.*"

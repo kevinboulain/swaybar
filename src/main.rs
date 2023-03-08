@@ -1,20 +1,15 @@
-#[macro_use]
-extern crate lazy_static;
-
 use async_stream::stream;
 use bytes::{Buf, BytesMut};
 use chrono::{self, Duration};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Deserializer};
-use std::option::Option;
-use std::{io, str};
+use std::{io, pin::pin, str};
 use tokio::{
-    pin,
     signal::unix::{signal, SignalKind},
     sync::watch,
     time::{interval, MissedTickBehavior},
 };
-use tokio_stream::StreamExt;
+use tokio_stream::StreamExt as _;
 use tokio_util::codec::{Decoder, FramedRead};
 
 mod dbus;
@@ -195,22 +190,14 @@ async fn main() {
     let mut refresh = interval(every_1s);
     refresh.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-    let audio = fetch!(every_5s, process::audio(), forced);
-    pin!(audio);
-    let batteries = dbus::power().await;
-    pin!(batteries);
-    let bluetooth = dbus::bluetooth().await;
-    pin!(bluetooth);
-    let cpu = fetch!(every_30s, prometheus::cpu(client));
-    pin!(cpu);
-    let download = fetch!(every_30s, prometheus::download(client));
-    pin!(download);
-    let temperature = fetch!(every_30s, prometheus::temperature(client));
-    pin!(temperature);
-    let upload = fetch!(every_30s, prometheus::upload(client));
-    pin!(upload);
-    let wifi = fetch!(every_30s, prometheus::wifi(client));
-    pin!(wifi);
+    let mut audio = pin!(fetch!(every_5s, process::audio(), forced));
+    let mut batteries = pin!(dbus::power().await);
+    let mut bluetooth = pin!(dbus::bluetooth().await);
+    let mut cpu = pin!(fetch!(every_30s, prometheus::cpu(client)));
+    let mut download = pin!(fetch!(every_30s, prometheus::download(client)));
+    let mut temperature = pin!(fetch!(every_30s, prometheus::temperature(client)));
+    let mut upload = pin!(fetch!(every_30s, prometheus::upload(client)));
+    let mut wifi = pin!(fetch!(every_30s, prometheus::wifi(client)));
 
     let mut audio_block = None;
     let mut battery_blocks = Vec::new();
