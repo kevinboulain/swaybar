@@ -1,3 +1,5 @@
+#![allow(clippy::upper_case_acronyms)]
+
 use async_stream::stream;
 use bytes::{Buf, BytesMut};
 use chrono::{self, Duration};
@@ -216,7 +218,6 @@ async fn main() {
           "version": 1,
           "click_events": true,
         })
-        .to_string()
     );
 
     loop {
@@ -292,7 +293,7 @@ async fn main() {
             Bluetooth((powered, connections)) => {
                 bluetooth_blocks = if !powered {
                     vec![Block::new(format!("{} Bluetooth", BARS[0])).name("bluetooth")]
-                } else if connections.len() == 0 {
+                } else if connections.is_empty() {
                     vec![Block::new(format!("{} Bluetooth", BARS[BARS.len() - 1])).name("bluetooth")]
                 } else {
                     connections
@@ -367,23 +368,34 @@ async fn main() {
                 )));
             }
             Refresh => {
-                // No way to get &T from Vec<T> via iter?
                 let mut blocks = Vec::new();
                 let error_block = errors.pop().map(|error| Block::new(color(error, Red)));
-                error_block.as_ref().map(|block| blocks.push(block));
-                upload_block.as_ref().map(|block| blocks.push(block));
-                download_block.as_ref().map(|block| blocks.push(block));
-                for index in 0..wifi_blocks.len() {
-                    blocks.push(&wifi_blocks[index]);
+                if let Some(block) = error_block.as_ref() {
+                    blocks.push(block);
                 }
-                temperature_block.as_ref().map(|block| blocks.push(block));
-                cpu_block.as_ref().map(|block| blocks.push(block));
-                for index in 0..battery_blocks.len() {
-                    blocks.push(&battery_blocks[index]);
+                if let Some(block) = upload_block.as_ref() {
+                    blocks.push(block);
                 }
-                audio_block.as_ref().map(|block| blocks.push(block));
-                for index in 0..bluetooth_blocks.len() {
-                    blocks.push(&bluetooth_blocks[index]);
+                if let Some(block) = download_block.as_ref() {
+                    blocks.push(block);
+                }
+                for block in &wifi_blocks {
+                    blocks.push(block);
+                }
+                if let Some(block) = temperature_block.as_ref() {
+                    blocks.push(block);
+                }
+                if let Some(block) = cpu_block.as_ref() {
+                    blocks.push(block);
+                }
+                for block in &battery_blocks {
+                    blocks.push(block);
+                }
+                if let Some(block) = audio_block.as_ref() {
+                    blocks.push(block);
+                }
+                for block in &bluetooth_blocks {
+                    blocks.push(block);
                 }
                 let date_block =
                     Block::new(chrono::offset::Local::now().format("%T %A %F").to_string());

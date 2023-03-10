@@ -5,7 +5,7 @@ use tokio::process::Command;
 
 pub async fn audio() -> io::Result<f64> {
     let volume = Command::new("wpctl")
-        .args(&["get-volume", "@DEFAULT_AUDIO_SINK@"])
+        .args(["get-volume", "@DEFAULT_AUDIO_SINK@"])
         .output();
 
     lazy_static! {
@@ -26,28 +26,28 @@ pub async fn audio() -> io::Result<f64> {
 
 pub async fn volume_mute() -> io::Result<ExitStatus> {
     Command::new("bash")
-        .args(&["-c", "volume_mute"])
+        .args(["-c", "volume_mute"])
         .status()
         .await
 }
 
 pub async fn volume_up() -> io::Result<ExitStatus> {
     Command::new("bash")
-        .args(&["-c", "volume_up"])
+        .args(["-c", "volume_up"])
         .status()
         .await
 }
 
 pub async fn volume_down() -> io::Result<ExitStatus> {
     Command::new("bash")
-        .args(&["-c", "volume_down"])
+        .args(["-c", "volume_down"])
         .status()
         .await
 }
 
 pub async fn bluetooth_toggle() -> io::Result<ExitStatus> {
     Command::new("bash")
-        .args(&[
+        .args([
             "-c",
             r#"(if bluetoothctl show | grep 'Powered: no'; then
                   bluetoothctl power on

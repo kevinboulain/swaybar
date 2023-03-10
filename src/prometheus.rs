@@ -25,7 +25,7 @@ async fn range_query(client: &Client, query: &str) -> Result<PromqlResult, Error
 fn array_from_matrix(result: PromqlResult) -> [Option<f64>; POINTS] {
     let mut array: [Option<f64>; POINTS] = Default::default();
     let values = result.data().as_matrix().unwrap(); // unwrap: known query
-    if values.len() == 0 {
+    if values.is_empty() {
         return array;
     }
     let mut values = values[0]

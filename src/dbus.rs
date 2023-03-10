@@ -43,7 +43,7 @@ async fn bluetooth_status(
 ) -> Result<(bool, Vec<(String, bool, String)>)> {
     let powered = adapter.powered().await?;
     let mut connections = Vec::new();
-    for (_, device) in devices {
+    for device in devices.values() {
         let name = device.name().await?;
         let connected = device.connected().await?;
         connections.push((name, connected, device.path().to_string()));
@@ -194,9 +194,9 @@ pub async fn bluetooth_toggle(device: Option<String>) -> Result<()> {
     }
 
     // There is no method on the adapter to do that.
-    if let Err(_) = process::bluetooth_toggle().await {
+    if let Err(error) = process::bluetooth_toggle().await {
         return Err(Error::InputOutput(
-            std::io::Error::new(std::io::ErrorKind::Other, "").into(),
+            std::io::Error::new(std::io::ErrorKind::Other, error.to_string()).into(),
         ));
     }
 
@@ -235,7 +235,7 @@ trait Device {
 
 async fn power_status(devices: &HashMap<String, DeviceProxy<'_>>) -> Result<Vec<(String, f64)>> {
     let mut batteries = Vec::new();
-    for (_, device) in devices {
+    for device in devices.values() {
         let model = device.model().await?;
         let percentage = device.percentage().await?;
         batteries.push((model, percentage));
