@@ -6,37 +6,36 @@
         let
           pkgs = import nixpkgs { inherit system; };
           toml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-          nativeBuildInputs = with pkgs; [
-            pkg-config
-            # https://gist.github.com/yihuang/b874efb97e99d4b6d12bf039f98ae31e?permalink_comment_id=4311076#gistcomment-4311076
-            rustPlatform.bindgenHook
-          ];
-          buildInputs = with pkgs; [
-            openssl
-          ];
         in
-          {
-            packages.${system}.default = pkgs.rustPlatform.buildRustPackage {
-              pname = toml.package.name;
-              version = toml.package.version;
-              cargoLock.lockFile = ./Cargo.lock;
-              src = pkgs.lib.cleanSource ./.;
-              inherit nativeBuildInputs buildInputs;
-            };
+          rec {
+            packages.${system}.default = pkgs.callPackage ({ lib, openssl, pkg-config, rustPlatform }:
+              rustPlatform.buildRustPackage {
+                pname = toml.package.name;
+                version = toml.package.version;
+                cargoLock.lockFile = ./Cargo.lock;
+                src = lib.cleanSource ./.;
+                nativeBuildInputs = [
+                  pkg-config
+                  # https://gist.github.com/yihuang/b874efb97e99d4b6d12bf039f98ae31e?permalink_comment_id=4311076#gistcomment-4311076
+                  rustPlatform.bindgenHook
+                ];
+                buildInputs = [
+                  openssl
+                ];
+              }) {};
             devShells.${system}.default = pkgs.mkShell {
               name = toml.package.name;
               RUST_BACKTRACE = 1;
-              nativeBuildInputs = with pkgs; nativeBuildInputs ++ [
+              inputsFrom = [ packages.${system}.default ];
+              nativeBuildInputs = with pkgs; [
                 # Toolchain.
-                cargo
                 clippy
                 rust-analyzer
-                rustc  # For rustc --print sysroot (RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc doesn't seem necessary).
                 rustfmt
                 # Goodies.
                 cargo-edit
               ];
-              buildInputs = with pkgs; buildInputs ++ [
+              buildInputs = with pkgs; [
                 # Debugging.
                 gdb
               ];
