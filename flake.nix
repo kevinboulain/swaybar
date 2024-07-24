@@ -26,16 +26,17 @@
             devShells.${system}.default = pkgs.mkShell {
               name = toml.package.name;
               RUST_BACKTRACE = 1;
+              RUST_LOG = pkgs.lib.strings.concatStringsSep "," [
+                "trace"
+              ];
               inputsFrom = [ packages.${system}.default ];
-              nativeBuildInputs = with pkgs; [
+              packages = with pkgs; [
                 # Toolchain.
                 clippy
                 rust-analyzer
                 rustfmt
                 # Goodies.
                 cargo-edit
-              ];
-              buildInputs = with pkgs; [
                 # Debugging.
                 gdb
               ];

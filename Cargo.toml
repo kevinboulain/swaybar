@@ -1,26 +1,32 @@
 [package]
-name = "swaybar"
-version = "0.1.0"
-edition = "2021"
-publish = false
+name = 'swaybar'
+version = '0.1.0'
+edition = '2021'
 
 [[bin]]
-name = "swaybar"
-path = "source/main.rs"
+name = 'swaybar'
+path = 'source/main.rs'
 
 [dependencies]
-async-stream = "0.3.*"
-bytes = "1.*"
-chrono = "0.4.*"
-lazy_static = "1.*"
-libc = "0.2.*"
-prometheus-http-query = "0.6.*"
-regex = "1.*"
-serde = "1.*"
-serde_json = "1.*"
-tokio = { version = "1.*", default-features = false, features = ["macros", "process", "signal"] }
-tokio-fd = "0.3.*"
-tokio-stream = "0.1.*"
-tokio-util = "0.7.*"
-zbus = { version = "3.*", default-features = false, features = ["tokio", "xml"] }
-zvariant = "3.*"
+async-channel = { version = '2', default-features = false }
+async-stream = { version = '0.3', default-features = false }
+chrono = { version = '0.4', default-features = false, features = [ 'clock', 'std' ] }
+env_logger = { version = '0.11', default-features = false, features = [ 'auto-color' ] }
+form_urlencoded = { version = '1', default-features = false, features = [ 'std' ] }
+futures-util = { version = '0.3', default-features = false, features = [ 'std' ] }
+http = { version = '1', default-features = false, features = [ 'std' ] }
+http-body-util = { version = '0.1', default-features = false }
+# Hyper pulls in Tokio but it doesn't uses it executor/reactor:
+# https://users.rust-lang.org/t/smol-async-std-support-for-hyper-1-0/104597
+hyper = { version = '1', default-features = false, features = [ 'client', 'http1' ] }
+log = { version = '0.4', default-features = false, features = [ 'std' ] }
+serde = { version = '1', default-features = false, features = [ 'derive', 'std' ] }
+serde_json =  { version = '1', default-features = false, features = [ 'std' ] }
+smol = { version = '2', default-features = false }
+smol-hyper =  { version = '0.1', default-features = false }
+thiserror = { version = '1', default-features = false }
+zbus = { version = '4', default-features = false, features = [ 'async-io' ] }
+zvariant = { version = '4', default-features = false }
+
+[lints.clippy]
+upper_case_acronyms = 'allow'
