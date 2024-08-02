@@ -1,3 +1,7 @@
+// https://gitlab.freedesktop.org/pipewire/wireplumber/-/issues/651
+// No D-Bus interface exists to listen for changes in volume.
+// Sometimes, PipeWire is acting up so I rely on PulseAudio tools for the times I need to fallback.
+
 use smol::{io::AsyncBufReadExt as _, stream::StreamExt as _};
 
 #[derive(Debug)]
