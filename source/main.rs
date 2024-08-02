@@ -299,66 +299,73 @@ async fn prometheus<'b, const POINTS: usize>(executor: &'b smol::Executor<'stati
     >| {
       let (cpu, download, temperature, upload, wifi, update) = match statuses {
         Ok((cpu, download, temperature, upload, wifi)) => {
-          let pad = |matrix: Vec<prometheus::MatrixResult>, default| -> [f64; POINTS] {
+          let pad = |matrix: Vec<prometheus::MatrixResult>, default| -> Option<[f64; POINTS]> {
             let matrix = matrix
               .first() // It's assumed there's only one metric.
               .map(|result| &result.values[..])
               .unwrap_or(&[]);
+            if matrix.is_empty() {
+              return None;
+            }
             let mut padded = std::iter::once((0, default)).cycle().take(POINTS - matrix.len()).chain(
               matrix
                 .iter()
                 .map(|prometheus::Value(timestamp, value)| (*timestamp, value.parse().unwrap_or(default))),
             );
-            std::array::from_fn(|_| padded.next().unwrap().1) // Unwrap: padded iterator.
+            Some(std::array::from_fn(|_| padded.next().unwrap().1)) // Unwrap: padded iterator.
           };
-          let cpu = pad(cpu, 0.);
-          let cpu = Block::new(&format!(
-            "{} {:.00}% CPU",
-            cpu
-              .map(|utilization| {
-                color(
-                  bars0(0., 1., utilization),
-                  match utilization {
-                    utilization if utilization >= 0.7 => Color::Red,
-                    utilization if utilization >= 0.3 => Color::Orange,
-                    _ => Color::Unspecified,
-                  },
-                )
-              })
-              .join(""),
-            cpu[cpu.len() - 1] * 100.
-          ));
-          let download = pad(download, 0.);
-          let download = Block::new(&format!(
-            "{} {:.02}M Download",
-            // 1M is interesting but not too large.
-            download.map(|bytes| bars0(0., 1_000_000., bytes)).iter().collect::<String>(),
-            download[download.len() - 1] / 1_000_000.
-          ));
-          let temperature = pad(temperature, 0.);
-          let temperature = Block::new(&format!(
-            "{} {:.00}°C",
-            temperature
-              .map(|degrees| {
-                color(
-                  bars0(30., 100., degrees), // Unlikely to be less than 30°C.
-                  match degrees {
-                    degrees if degrees >= 70. => Color::Red,
-                    degrees if degrees >= 50. => Color::Orange,
-                    _ => Color::Unspecified,
-                  },
-                )
-              })
-              .join(""),
-            temperature[temperature.len() - 1]
-          ));
-          let upload = pad(upload, 0.);
-          let upload = Block::new(&format!(
-            "{} {:.02}M Upload",
-            // 1M is interesting but not too large.
-            upload.map(|bytes| bars0(0., 1_000_000., bytes)).iter().collect::<String>(),
-            upload[upload.len() - 1] / 1_000_000.
-          ));
+          let cpu = pad(cpu, 0.).map(|cpu| {
+            Block::new(&format!(
+              "{} {:.00}% CPU",
+              cpu
+                .map(|utilization| {
+                  color(
+                    bars0(0., 1., utilization),
+                    match utilization {
+                      utilization if utilization >= 0.7 => Color::Red,
+                      utilization if utilization >= 0.3 => Color::Orange,
+                      _ => Color::Unspecified,
+                    },
+                  )
+                })
+                .join(""),
+              cpu[cpu.len() - 1] * 100.
+            ))
+          });
+          let download = pad(download, 0.).map(|download| {
+            Block::new(&format!(
+              "{} {:.02}M Download",
+              // 1M is interesting but not too large.
+              download.map(|bytes| bars0(0., 1_000_000., bytes)).iter().collect::<String>(),
+              download[download.len() - 1] / 1_000_000.
+            ))
+          });
+          let temperature = pad(temperature, 0.).map(|temperature| {
+            Block::new(&format!(
+              "{} {:.00}°C",
+              temperature
+                .map(|degrees| {
+                  color(
+                    bars0(30., 100., degrees), // Unlikely to be less than 30°C.
+                    match degrees {
+                      degrees if degrees >= 70. => Color::Red,
+                      degrees if degrees >= 50. => Color::Orange,
+                      _ => Color::Unspecified,
+                    },
+                  )
+                })
+                .join(""),
+              temperature[temperature.len() - 1]
+            ))
+          });
+          let upload = pad(upload, 0.).map(|upload| {
+            Block::new(&format!(
+              "{} {:.02}M Upload",
+              // 1M is interesting but not too large.
+              upload.map(|bytes| bars0(0., 1_000_000., bytes)).iter().collect::<String>(),
+              upload[upload.len() - 1] / 1_000_000.
+            ))
+          });
           let wifi = wifi
             .first() // It's assumed there's only one metric.
             .and_then(|result| {
@@ -377,14 +384,7 @@ async fn prometheus<'b, const POINTS: usize>(executor: &'b smol::Executor<'stati
               let ssid = result.metric.get("ssid")?;
               Some(Block::new(&format!("{bar} {ssid}")))
             });
-          (
-            Some(cpu),
-            Some(download),
-            Some(temperature),
-            Some(upload),
-            wifi,
-            BlockUpdate::Publish,
-          )
+          (cpu, download, temperature, upload, wifi, BlockUpdate::Publish)
         }
         Err(error) => (None, None, None, None, None, BlockUpdate::Error(error.into())),
       };
